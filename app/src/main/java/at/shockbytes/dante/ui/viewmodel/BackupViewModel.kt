@@ -11,6 +11,7 @@ import at.shockbytes.dante.util.RestoreStrategy
 import at.shockbytes.dante.core.data.BookRepository
 import at.shockbytes.dante.util.DanteUtils
 import at.shockbytes.dante.util.addTo
+import at.shockbytes.dante.util.merge
 import at.shockbytes.dante.util.scheduler.SchedulerFacade
 import at.shockbytes.tracking.Tracker
 import at.shockbytes.tracking.event.DanteTrackingEvent
@@ -117,17 +118,17 @@ class BackupViewModel @Inject constructor(
             .subscribeOn(schedulers.io)
             .subscribe({ backupEntries ->
 
-            // Check if backups are empty. One could argue that we can evaluate this in the fragment,
-            // this solution seems cleaner, because it doesn't bother the view with even the simplest logic
-            if (backupEntries.isNotEmpty()) {
-                loadBackupState.postValue(LoadBackupState.Success(backupEntries))
-            } else {
-                loadBackupState.postValue(LoadBackupState.Empty)
-            }
-        }) { throwable ->
-            Timber.e(throwable)
-            loadBackupState.postValue(LoadBackupState.Error(throwable))
-        }.addTo(compositeDisposable)
+                // Check if backups are empty. One could argue that we can evaluate this in the fragment,
+                // this solution seems cleaner, because it doesn't bother the view with even the simplest logic
+                if (backupEntries.isNotEmpty()) {
+                    loadBackupState.postValue(LoadBackupState.Success(backupEntries))
+                } else {
+                    loadBackupState.postValue(LoadBackupState.Empty)
+                }
+            }) { throwable ->
+                Timber.e(throwable)
+                loadBackupState.postValue(LoadBackupState.Error(throwable))
+            }.addTo(compositeDisposable)
     }
 
     private fun updateLastBackupTime(resetValue: Boolean = false) {
@@ -153,20 +154,14 @@ class BackupViewModel @Inject constructor(
     }
 
     fun deleteLibrary(): Completable {
-        return Completable
-            .create { emitter ->
-
-                val books = bookRepository.bookObservable.blockingFirst()
-
-                if (books.isEmpty()) {
-                    emitter.onError(IllegalStateException("No library to burn down"))
-                }
-
+        return bookRepository.bookObservable
+            .firstOrError()
+            .flatMapCompletable { books ->
                 books
-                    .map { it.id }
-                    .forEach(bookRepository::delete)
-
-                emitter.onComplete()
+                    .map { book ->
+                        bookRepository.delete(book.id)
+                    }
+                    .merge()
             }
             .doOnComplete {
                 tracker.track(DanteTrackingEvent.BurnDownLibrary)

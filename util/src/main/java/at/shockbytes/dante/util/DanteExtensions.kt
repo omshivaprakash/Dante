@@ -176,6 +176,8 @@ fun <T> maybeOf(
         .subscribeOn(subscribeOn)
 }
 
+fun List<Completable>.merge(): Completable = Completable.merge(this)
+
 fun SharedPreferences.getIntOrNullIfDefault(key: String, default: Int): Int? {
     val value = getInt(key, default)
     return if (value != default) value else null

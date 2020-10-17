@@ -40,8 +40,7 @@ class DanteApp : MultiDexApplication(), CoreComponentProvider {
             .coreModule(
                 CoreModule(
                     app = this,
-                    // TODO Set to false once DAO is reactive
-                    config = CoreModule.CoreModuleConfig(allowRealmExecutionOnUiThread = true)
+                    config = CoreModule.CoreModuleConfig(allowRealmExecutionOnUiThread = false)
                 )
             )
             .networkModule(NetworkModule())
